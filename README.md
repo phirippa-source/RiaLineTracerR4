@@ -36,7 +36,9 @@ RiaLineTracerR4/
 │  └─ riaLineTracerR4.cpp
 
 └─ examples/
+
    └─ basic_line_trace/
+   
       └─ basic_line_trace.ino
 
 After copying, restart Arduino IDE.
