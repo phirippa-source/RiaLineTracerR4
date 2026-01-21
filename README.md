@@ -61,7 +61,7 @@ If you do not use/know it, set `emitterPin = -1`.
 Create an example sketch (or use examples/basic_line_trace/basic_line_trace.ino):
 
 ```cpp
-#include <RiaLineTracerR4.h>   // library.properties의 includes에 맞춰 설치 시
+#include <riaLineTracerR4.h>   // library.properties의 includes에 맞춰 설치 시
 
 const uint8_t sensorPins[] = { 5, A2, A0, 11, A3, 4 };
 RiaLineTracerR4 tracer(sensorPins, 6, -1);
