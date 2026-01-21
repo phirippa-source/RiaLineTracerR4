@@ -1,13 +1,12 @@
-#include <riaLineTracerR4.h>   // library.properties의 includes에 맞춰 설치 시
+#include <RiaLineTracerR4.h>
 
 const uint8_t sensorPins[] = { 5, A2, A0, 11, A3, 4 };
-RiaLineTracerR4 tracer(sensorPins, 6, 2);  // Sensor는 6개 emitter Pin은 2번
+RiaLineTracerR4 tracer(sensorPins, 6); // emitterPin 기본값 2
 
 void setup() {
   Serial.begin(115200);
-  // 센서를 읽을 때만 라인센서 발광 소자를 on하고 싶다면 false, 항상 on하고 싶다면 ture
-  tracer.begin(false); 
 
+  tracer.begin(true);               // true : emitter 항상 ON, false : 라인센서 읽을 때만 on
   tracer.calibrate(200, 2500, 10, 5);
 
   tracer.setPID(0.18f, 0.0f, 1.2f);
@@ -18,9 +17,6 @@ void setup() {
 
   // 모터가 저속에서 안 돌면:
   // tracer.setMinPwmWhenMoving(40);
-
-  // 모터 핀맵이 다르면:
-  // tracer.setMotorPins(8,10, 7,9);
 }
 
 void loop() {
