@@ -141,6 +141,86 @@ void RiaLineTracerR4::calibrateSpin(uint16_t loops,
   stop();
 }
 
+bool RiaLineTracerR4::calibrateSpinSafe(uint16_t maxLoops,
+                                        int16_t  turnPwm,
+                                        uint16_t block,
+                                        uint16_t timeoutUs,
+                                        uint8_t  chargeUs,
+                                        uint16_t noiseThreshold,
+                                        uint16_t targetRange,
+                                        uint8_t  stableNeed,
+                                        uint8_t  perLoopDelayMs)
+{
+  if (maxLoops == 0) return false;
+  if (block == 0) block = 1;
+
+  resetCalibration();
+
+  // 안전: 너무 센 PWM은 캡
+  if (turnPwm > 180) turnPwm = 180;
+  if (turnPwm < 60)  turnPwm = 60;
+
+  uint8_t stableCnt = 0;
+
+  // 라인 이탈 감지 연속 카운트(이탈 시 회전 약화)
+  uint8_t lostCnt = 0;
+
+  uint16_t cal[MAX_SENSORS];
+
+  for (uint16_t i = 0; i < maxLoops; i++) {
+    // 좌/우 번갈아
+    const bool dir = ((i / block) % 2 == 0);
+
+    // 기본 회전
+    if (dir) applyMotor(+turnPwm, -turnPwm);
+    else     applyMotor(-turnPwm, +turnPwm);
+
+    // 1회 캘리브레이션 누적(=raw 읽고 min/max 업데이트)
+    calibrateManual(1, timeoutUs, chargeUs, 0);
+
+    // 현재 cal + 라인 상태 확인(가드)
+    auto line = readLineWithCal(cal, false, timeoutUs, chargeUs, noiseThreshold);
+
+    if (line.lost) {
+      lostCnt++;
+    } else {
+      lostCnt = 0;
+    }
+
+    // 라인을 연속으로 잃으면: 회전 강도를 조금 낮춰서 밖으로 나가는 걸 억제
+    if (lostCnt >= 10) {
+      if (turnPwm > 70) turnPwm -= 10;
+      lostCnt = 0;
+    }
+
+    // 완료 조건: 모든 센서가 충분한 range를 확보했는지 검사
+    bool okAll = true;
+    for (uint8_t s = 0; s < _numSensors; s++) {
+      const uint16_t r = (uint16_t)(_calibMax[s] - _calibMin[s]);
+      if (r < targetRange) { okAll = false; break; }
+    }
+
+    if (okAll) {
+      stableCnt++;
+      if (stableCnt >= stableNeed) {
+        stop();
+        return true;
+      }
+    } else {
+      stableCnt = 0;
+    }
+
+    if (perLoopDelayMs > 0) delay(perLoopDelayMs);
+  }
+
+  stop();
+  // maxLoops까지 가도 완료 기준 미달
+  return false;
+}
+
+
+
+
 // -------------------- sensor read (RC) --------------------
 
 void RiaLineTracerR4::readRaw(uint16_t* rawValues, uint16_t timeoutUs, uint8_t chargeUs)
