@@ -1,24 +1,3 @@
-RiaLineTracerR4::MotorCommand RiaLineTracerR4::driveWithReport(int16_t baseSpeed, int32_t correction, int16_t maxSpeed)
-{
-  const int16_t maxAbs = (maxSpeed < 0) ? (int16_t)(-maxSpeed) : maxSpeed;
-
-  const int32_t leftCmd  = (int32_t)baseSpeed + correction;
-  const int32_t rightCmd = (int32_t)baseSpeed - correction;
-
-  const int16_t L = clampMotor_(leftCmd,  maxAbs);
-  const int16_t R = clampMotor_(rightCmd, maxAbs);
-
-  _lastMotor.left = L;
-  _lastMotor.right = R;
-
-  applyMotor(L, R);
-  return _lastMotor;
-}
-
-RiaLineTracerR4::MotorCommand RiaLineTracerR4::getLastMotorCommand() const
-{
-  return _lastMotor;
-}
 #include "RiaLineTracerR4.h"
 
 // -------------------- ctor / begin --------------------
@@ -36,7 +15,8 @@ RiaLineTracerR4::RiaLineTracerR4(const uint8_t* pins, uint8_t numSensors, int8_t
   _lastPidMicros(0),
   _leftDirPin(8), _leftPwmPin(10), _rightDirPin(7), _rightPwmPin(9),
   _dirLowIsForward(true),
-  _minPwmWhenMoving(0)
+  _minPwmWhenMoving(0),
+  _lastMotor{0, 0}
 {
   if (_numSensors > MAX_SENSORS) _numSensors = MAX_SENSORS;
 
@@ -46,7 +26,7 @@ RiaLineTracerR4::RiaLineTracerR4(const uint8_t* pins, uint8_t numSensors, int8_t
     _calibMax[i] = 0;
   }
 
-  // 초기 lastPosition은 중앙
+  // initial last position = center
   if (_numSensors > 0) {
     _lastPosition = (int32_t)(_numSensors - 1) * 1000L / 2;
   }
@@ -56,13 +36,13 @@ void RiaLineTracerR4::begin(bool emitterAlwaysOn)
 {
   _emitterAlwaysOn = emitterAlwaysOn;
 
-  // emitter
+  // emitter pin
   if (_emitterPin >= 0) {
     pinMode((uint8_t)_emitterPin, OUTPUT);
     digitalWrite((uint8_t)_emitterPin, _emitterAlwaysOn ? HIGH : LOW);
   }
 
-  // sensor pins
+  // sensor pins default input
   for (uint8_t i = 0; i < _numSensors; i++) {
     pinMode(_pins[i], INPUT);
   }
@@ -147,13 +127,12 @@ void RiaLineTracerR4::calibrateSpin(uint16_t loops,
   resetCalibration();
 
   for (uint16_t i = 0; i < loops; i++) {
-    // block마다 방향 전환
     const bool dir = ((i / block) % 2 == 0);
 
     if (dir) applyMotor(+turnPwm, -turnPwm);
     else     applyMotor(-turnPwm, +turnPwm);
 
-    // 1회씩 누적
+    // accumulate one sample
     calibrateManual(1, timeoutUs, chargeUs, 0);
 
     if (perLoopDelayMs > 0) delay(perLoopDelayMs);
@@ -168,17 +147,17 @@ void RiaLineTracerR4::readRaw(uint16_t* rawValues, uint16_t timeoutUs, uint8_t c
 {
   ensureEmitterOnForRead_();
 
-  // 1) 충전: OUTPUT HIGH
+  // 1) charge: OUTPUT HIGH
   for (uint8_t i = 0; i < _numSensors; i++) {
     pinMode(_pins[i], OUTPUT);
     digitalWrite(_pins[i], HIGH);
   }
   if (chargeUs > 0) delayMicroseconds(chargeUs);
 
-  // 기본값은 timeout
+  // initialize with timeout
   for (uint8_t i = 0; i < _numSensors; i++) rawValues[i] = timeoutUs;
 
-  // 2) INPUT으로 바꾸고 LOW로 떨어지는 시간 측정
+  // 2) switch to input and measure discharge time until LOW
   for (uint8_t i = 0; i < _numSensors; i++) {
     pinMode(_pins[i], INPUT);
   }
@@ -247,10 +226,10 @@ RiaLineTracerR4::LineResult RiaLineTracerR4::readLine(bool whiteLine,
   for (uint8_t i = 0; i < _numSensors; i++) {
     uint16_t v = cal[i];
 
-    // whiteLine 모드면 뒤집기
+    // invert for white line
     if (whiteLine) v = 1000 - v;
 
-    // 너무 작은 값은 노이즈로 무시
+    // ignore noise
     if (v < noiseThreshold) continue;
 
     weightedSum += (uint32_t)v * (uint32_t)(i * 1000UL);
@@ -260,7 +239,7 @@ RiaLineTracerR4::LineResult RiaLineTracerR4::readLine(bool whiteLine,
   LineResult out{};
   if (sum == 0) {
     out.lost = true;
-    out.position = _lastPosition; // 마지막 위치 유지
+    out.position = _lastPosition;
     return out;
   }
 
@@ -280,10 +259,11 @@ int32_t RiaLineTracerR4::computeError(int32_t position) const
 
 int32_t RiaLineTracerR4::computeCorrection(int32_t error)
 {
-  // dt
   const uint32_t now = micros();
   float dt = (now - _lastPidMicros) * 1e-6f;
   _lastPidMicros = now;
+
+  // guard against too small dt
   if (dt < 0.001f) dt = 0.001f;
 
   const float e = (float)error;
@@ -305,6 +285,11 @@ int32_t RiaLineTracerR4::computeCorrection(int32_t error)
 
 void RiaLineTracerR4::drive(int16_t baseSpeed, int32_t correction, int16_t maxSpeed)
 {
+  (void)driveWithReport(baseSpeed, correction, maxSpeed);
+}
+
+RiaLineTracerR4::MotorCommand RiaLineTracerR4::driveWithReport(int16_t baseSpeed, int32_t correction, int16_t maxSpeed)
+{
   const int16_t maxAbs = (maxSpeed < 0) ? (int16_t)(-maxSpeed) : maxSpeed;
 
   const int32_t leftCmd  = (int32_t)baseSpeed + correction;
@@ -313,7 +298,16 @@ void RiaLineTracerR4::drive(int16_t baseSpeed, int32_t correction, int16_t maxSp
   const int16_t L = clampMotor_(leftCmd,  maxAbs);
   const int16_t R = clampMotor_(rightCmd, maxAbs);
 
+  _lastMotor.left = L;
+  _lastMotor.right = R;
+
   applyMotor(L, R);
+  return _lastMotor;
+}
+
+RiaLineTracerR4::MotorCommand RiaLineTracerR4::getLastMotorCommand() const
+{
+  return _lastMotor;
 }
 
 void RiaLineTracerR4::stop()
@@ -341,7 +335,7 @@ void RiaLineTracerR4::resetPID()
   _lastPidMicros = micros();
 }
 
-// -------------------- motor helpers --------------------
+// -------------------- clamp helpers --------------------
 
 uint8_t RiaLineTracerR4::clampPwmAbs_(int32_t v) const
 {
@@ -391,9 +385,14 @@ void RiaLineTracerR4::setMinPwmWhenMoving(uint8_t minPwm)
 
 void RiaLineTracerR4::applyMotor(int16_t left, int16_t right)
 {
-  // Left
+  // store last command
+  _lastMotor.left = left;
+  _lastMotor.right = right;
+
+  // Left motor
   const bool leftForward = (left >= 0);
   uint8_t leftPwm = clampPwmAbs_(left);
+
   if (leftPwm > 0 && _minPwmWhenMoving > 0 && leftPwm < _minPwmWhenMoving) {
     leftPwm = _minPwmWhenMoving;
   }
@@ -405,9 +404,10 @@ void RiaLineTracerR4::applyMotor(int16_t left, int16_t right)
   digitalWrite(_leftDirPin, leftDirLevel);
   analogWrite(_leftPwmPin, leftPwm);
 
-  // Right
+  // Right motor
   const bool rightForward = (right >= 0);
   uint8_t rightPwm = clampPwmAbs_(right);
+
   if (rightPwm > 0 && _minPwmWhenMoving > 0 && rightPwm < _minPwmWhenMoving) {
     rightPwm = _minPwmWhenMoving;
   }
