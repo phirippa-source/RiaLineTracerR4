@@ -77,6 +77,18 @@ public:
                      uint8_t  chargeUs  = 10,
                      uint8_t  perLoopDelayMs = 10);
 
+  // Safer auto calibration: spin with guard and auto-finish
+  // 목표: 라인 밖으로 크게 벗어나지 않으면서 모든 센서가 line+bg를 충분히 경험
+  bool calibrateSpinSafe(uint16_t maxLoops = 600,
+                         int16_t  turnPwm = 110,
+                         uint16_t block = 60,
+                         uint16_t timeoutUs = 2000,
+                         uint8_t  chargeUs  = 10,
+                         uint16_t noiseThreshold = 140,
+                         uint16_t targetRange = 300,
+                         uint8_t  stableNeed = 20,
+                         uint8_t  perLoopDelayMs = 10);
+
   // -----------------------
   // 2) Read sensors (loop)
   // -----------------------
