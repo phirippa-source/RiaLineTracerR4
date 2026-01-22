@@ -92,11 +92,11 @@ void loop() {
   tracer.drive(BASE_SPEED, correction, MAX_SPEED);
 
   // 디버그 출력(선택): 너무 자주 출력하면 제어가 흔들릴 수 있어 200ms 주기
-  static uint32_t last = 0;
-  if (Serial && (millis() - last >= 200)) {
-    last = millis();
-    Serial.print("pos="); Serial.print(line.position);
-    Serial.print(" err="); Serial.print(error);
-    Serial.print(" corr="); Serial.println(correction);
-  }
+  // static uint32_t last = 0;
+  // if (Serial && (millis() - last >= 200)) {
+  //   last = millis();
+  //   Serial.print("pos="); Serial.print(line.position);
+  //   Serial.print(" err="); Serial.print(error);
+  //   Serial.print(" corr="); Serial.println(correction);
+  // }
 }
