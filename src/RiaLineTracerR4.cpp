@@ -1,3 +1,24 @@
+RiaLineTracerR4::MotorCommand RiaLineTracerR4::driveWithReport(int16_t baseSpeed, int32_t correction, int16_t maxSpeed)
+{
+  const int16_t maxAbs = (maxSpeed < 0) ? (int16_t)(-maxSpeed) : maxSpeed;
+
+  const int32_t leftCmd  = (int32_t)baseSpeed + correction;
+  const int32_t rightCmd = (int32_t)baseSpeed - correction;
+
+  const int16_t L = clampMotor_(leftCmd,  maxAbs);
+  const int16_t R = clampMotor_(rightCmd, maxAbs);
+
+  _lastMotor.left = L;
+  _lastMotor.right = R;
+
+  applyMotor(L, R);
+  return _lastMotor;
+}
+
+RiaLineTracerR4::MotorCommand RiaLineTracerR4::getLastMotorCommand() const
+{
+  return _lastMotor;
+}
 #include "RiaLineTracerR4.h"
 
 // -------------------- ctor / begin --------------------
