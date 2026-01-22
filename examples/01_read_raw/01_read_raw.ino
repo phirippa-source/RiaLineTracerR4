@@ -6,11 +6,7 @@ RiaLineTracerR4 tracer(sensorPins, 6); // emitterPin default=2
 
 void setup() {
   Serial.begin(115200);
-
-  // 1) 센서/모터/이미터 초기화
-  tracer.begin(true);
-
-  Serial.println("01_read_raw READY");
+  tracer.begin(true);  // 센서/모터/이미터 초기화
 }
 
 void loop() {
