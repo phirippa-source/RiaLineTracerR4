@@ -35,6 +35,16 @@ public:
   };
 
 public:
+  // Read calibrated values AND line position in one sensor read
+  // - calValues: output 0..1000 per sensor (size >= sensorCount())
+  // - whiteLine: false=black line on white, true=white line on black
+  // - noiseThreshold: ignore small values as noise
+  LineResult readLineWithCal(uint16_t* calValues,
+                             bool whiteLine = false,
+                             uint16_t timeoutUs = 2000,
+                             uint8_t  chargeUs  = 10,
+                             uint16_t noiseThreshold = 140);
+
   // Sensor info helpers (for examples / education)
   uint8_t sensorCount() const;
   int32_t centerPosition() const; // 0..(N-1)*1000 의 중앙값
