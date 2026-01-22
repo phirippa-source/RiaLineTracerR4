@@ -16,6 +16,14 @@ public:
     bool    lost;       // 라인을 못 찾았는지
     int32_t position;   // 0..(N-1)*1000 (왼쪽=0, 오른쪽=(N-1)*1000)
   };
+  struct MotorCommand {
+    int16_t left;
+    int16_t right;
+  };
+
+  MotorCommand driveWithReport(int16_t baseSpeed, int32_t correction, int16_t maxSpeed);
+  MotorCommand getLastMotorCommand() const;
+
 
 public:
   // pins: 센서 핀(LEFT -> RIGHT 순서)
@@ -109,6 +117,8 @@ private:
   int16_t clampMotor_(int32_t v, int16_t maxAbs) const;
   uint8_t clampPwmAbs_(int32_t v) const;
   int32_t roundToInt_(float x) const;
+  MotorCommand _lastMotor{0, 0};
+
 
 private:
   // sensor
