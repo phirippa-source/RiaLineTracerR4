@@ -35,6 +35,10 @@ public:
   };
 
 public:
+  // Sensor info helpers (for examples / education)
+  uint8_t sensorCount() const;
+  int32_t centerPosition() const; // 0..(N-1)*1000 의 중앙값
+
   // pins: sensor pins in LEFT -> RIGHT order
   // numSensors: number of sensors (<= MAX_SENSORS)
   // emitterPin: IR emitter control pin (default = 2)
